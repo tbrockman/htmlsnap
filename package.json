@@ -1,0 +1,31 @@
+{
+  "name": "copyhtml",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "build": "vite build",
+    "test": "vitest",
+    "addlicense": "make license"
+  },
+  "devDependencies": {
+    "@types/chrome": "^0.0.315",
+    "@types/clean-css": "^4.2.11",
+    "@types/jsdom": "^21.1.7",
+    "cross-env": "^7.0.3",
+    "esbuild": "^0.25.2",
+    "jsdom": "^26.1.0",
+    "typescript": "^5.0.0",
+    "vite": "^6.3.1",
+    "vite-plugin-node-polyfills": "^0.23.0",
+    "vitest": "^3.1.1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "@codemirror/lang-html": "^6.4.9",
+    "clean-css": "^5.3.3",
+    "codemirror": "^6.0.1"
+  }
+}

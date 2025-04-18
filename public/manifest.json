@@ -1,0 +1,16 @@
+{
+    "name": "HTMLSnap",
+    "author": "Theodore Brockman",
+    "version": "0.0.1",
+    "manifest_version": 3,
+    "devtools_page": "devtools.html",
+    "permissions": [
+        "clipboardWrite",
+        "offscreen"
+    ],
+    "background": {
+        "scripts": [
+            "background.js"
+        ]
+    }
+}

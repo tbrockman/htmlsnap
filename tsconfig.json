@@ -1,0 +1,28 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "ESNext",
+        "moduleResolution": "Node",
+        "lib": [
+            "DOM",
+            "ESNext"
+        ],
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "allowJs": true,
+        "outDir": "dist",
+        "types": [
+            "chrome"
+        ],
+        "baseUrl": ".",
+        "paths": {
+            "funcstr:*": [
+                "src/*"
+            ]
+        },
+    },
+    "include": [
+        "src"
+    ]
+}
