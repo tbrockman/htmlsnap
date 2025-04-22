@@ -1,0 +1,43 @@
+name: Add license headers
+
+on:
+    pull_request:
+        types: [opened, synchronize, reopened]
+
+jobs:
+    add-license:
+        runs-on: ubuntu-latest
+        permissions:
+            contents: write # Required to push to PR branches
+            pull-requests: write
+
+        steps:
+            - name: Checkout PR branch
+              uses: actions/checkout@v3
+              with:
+                  ref: ${{ github.head_ref }}
+                  token: ${{ secrets.GITHUB_TOKEN }}
+
+            - name: Install Go
+              uses: actions/setup-go@v5
+              with:
+                  go-version: '>=1.17'
+
+            - name: Install addlicense
+              run: |
+                  go install github.com/google/addlicense@latest
+                  echo "$HOME/go/bin" >> $GITHUB_PATH
+
+            - name: Run addlicense to add headers
+              run: make license
+
+            - name: Commit and push changes (if any)
+              run: |
+                  if [ -n "$(git status --porcelain)" ]; then
+                    git config user.name "github-actions[bot]"
+                    git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+                    git commit -am "chore: auto-add missing license headers"
+                    git push
+                  else
+                    echo "No license changes needed"
+                  fi

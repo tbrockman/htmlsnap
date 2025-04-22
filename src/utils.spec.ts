@@ -9,7 +9,7 @@ import { JSDOM } from 'jsdom';
 
 describe('DomUtils', () => {
 
-    describe.only('serializeElement', () => {
+    describe('serializeElement', () => {
         let container: HTMLElement;
 
         beforeEach(() => {
@@ -52,20 +52,20 @@ describe('DomUtils', () => {
         });
 
         test('groups elements by computed styles and returns CSS rules', () => {
-            const { classes, css, element, elementToClassMap } = DomUtils.groupByComputedStyles(container);
+            const { classes, css, element } = DomUtils.groupByComputedStyles(container);
 
             // Basic shape check
             expect(classes).toBeDefined();
             expect(css).toBeDefined();
             expect(element).toBeDefined();
-            expect(elementToClassMap).toBeDefined()
             expect(Array.isArray(classes)).toBe(true);
-            expect(Array.isArray(css)).toBe(true);
+            expect(typeof css === 'string').toBe(true);
             expect(element).toBeInstanceOf(window.HTMLElement);
 
             // Should generate CSS rules
             expect(css.length).toBeGreaterThan(0);
-            expect(css[0]).toMatch(/^\.\S+\s*{/); // `.🇨🇦0 { ... }`
+            console.log(css)
+            expect(css.split('\n')[0]).toMatch(/^\.\S+\s*{/); // `.🇨🇦0 { ... }`
 
             // Check that elements got classes
             const classCount = classes.length;
