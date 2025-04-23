@@ -15,7 +15,6 @@ export default defineConfig({
                 background: "src/background.ts",
                 devtools: "src/devtools.ts",
                 offscreen: "src/offscreen.ts",
-                editor: "src/editor.ts",
             },
             output: {
                 entryFileNames: "[name].js",

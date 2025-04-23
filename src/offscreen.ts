@@ -9,7 +9,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         if (typeof message.text === 'string') {
             const textToCopy = message.text;
 
-            console.log('Offscreen: Received text to copy:', textToCopy);
+            console.debug('Offscreen: Received text to copy:', textToCopy);
 
             // --- Use document.execCommand('copy') ---
             // 1. Create a temporary textarea element
@@ -28,7 +28,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
             try {
                 success = document.execCommand('copy'); // This is the core command
                 if (success) {
-                    console.log('Offscreen: Text copied successfully using execCommand.');
+                    console.debug('Offscreen: Text copied successfully using execCommand.');
                 } else {
                     // execCommand can return false if copy is not supported or disallowed
                     errorMsg = "document.execCommand('copy') returned false. Copy might be disallowed or unsupported.";

@@ -40,7 +40,7 @@ export namespace DomUtils {
             for (let i = 0; i < computedStyle.length; i++) {
                 const prop = computedStyle[i];
                 const value = computedStyle.getPropertyValue(prop);
-                const style = `${prop}: ${value};`
+                const style = `${prop}:${value};`
                 const set = styleToElements.get(style);
 
                 if (set) {
@@ -75,7 +75,7 @@ export namespace DomUtils {
             const className = `🇨🇦${counter}`
             classes.push(className)
 
-            const rule = `.${className} { ${Array.from(styles).join(' ')} }`
+            const rule = `.${className} { ${Array.from(styles).join('')} }`
             rules.push(rule)
 
             ids.split(',').forEach(id => {
@@ -99,14 +99,28 @@ export namespace DomUtils {
         }
     }
 
+    export function hydrate(html: string, css: string): HTMLElement {
+        const element = document.createElement('div')
+
+        const template = document.createElement('template');
+        template.innerHTML = html;
+        element.appendChild(template.content);
+
+        const style = document.createElement('style');
+        style.innerHTML = css;
+        element.appendChild(style);
+
+        return element;
+    }
+
     /**
+     * Serializes an element (and its children) as a JSON string
      * 
-     * @param element The element to serialize
+     * @param element The element to serialize 
      * @param options Serialization options
-     * @description Serializes the element and its children
-     * @returns
+     * @returns a JSON string of { html, css }
      */
-    export function serializeElement(element: HTMLElement, { mode }: ElementSerdeOptions): string {
+    export function elementToJSON(element: HTMLElement, { mode }: ElementSerdeOptions): string {
         if (!element) return "<No element received>";
 
         let result = { html: '<div>Unrecognized mode</div>', css: '' }
@@ -117,7 +131,6 @@ export namespace DomUtils {
 
                 result.html = el.outerHTML;
                 result.css = css;
-                console.log({ result })
                 break;
         }
         // Convert to HTML string with inline styles

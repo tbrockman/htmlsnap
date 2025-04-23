@@ -3,47 +3,86 @@
  Copyright 2025 Theodore Brockman
  SPDX-License-Identifier: AGPL-3.0-or-later
 -->
-
 <html>
-
 <head>
-    <meta charset="utf-8" />
-    <style>
-        html {
-            height: 100vh;
-            width: 100vw;
-        }
+  <meta charset="utf-8" />
+  <style>
+    html, body {
+      margin: 0;
+      font-family: system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--fg);
+    }
 
-        body {
-            font-family: sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: calc(100% - 16px);
-            width: calc(100% - 16px);
-        }
+    :root {
+      --bg: #fff;
+      --fg: #000;
+      --border: #ccc;
+    }
 
-        #preview {
-            display: flex;
-            flex: 1;
-            overflow: auto;
-            margin-top: 16px;
-            border-top: 1px solid #ccc;
-            padding-top: 8px;
-        }
+    @media (prefers-color-scheme: dark) {
+      :root {
+        --bg: #1e1e1e;
+        --fg: #ddd;
+        --border: #444;
+      }
+    }
 
-        #copy {
-            width: fit-content;
-        }
-    </style>
+    body {
+      display: flex;
+      flex-direction: column;
+      padding: 8px;
+      gap: 8px;
+    }
+
+    .section {
+      display: flex;
+      flex-direction: column;
+      flex: 1;
+      max-height: 50vh;
+    }
+
+    .section > .header {
+      font-weight: bold;
+      font-size: 0.85rem;
+      padding-bottom: 4px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 4px;
+    }
+
+    #codemirror, #preview {
+        overflow: auto;
+    }
+
+    #copy {
+      font-size: 0.75rem;
+      padding: 4px 8px;
+      background-color: var(--bg);
+      color: var(--fg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.2s ease;
+    }
+
+    #copy:hover {
+      background-color: rgba(127,127,127,0.1);
+    }
+  </style>
 </head>
 
 <body>
-    <button id="copy">Copy to clipboard</button>
+  <div class="section" id="editor-section">
+    <div class="header">Editor</div>
+    <button id="copy">Copy</button>
     <div id="codemirror"></div>
-    <div id="preview"></div>
+  </div>
 
-    <script src="editor.js" type="module"></script>
-    <script src="devtools.js" type="module"></script>
+  <div class="section">
+    <div class="header">Preview</div>
+    <div id="preview">Rendered output goes here...</div>
+  </div>
+
+  <script src="devtools.js" type="module"></script>
 </body>
-
 </html>

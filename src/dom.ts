@@ -8,7 +8,7 @@ import { DomUtils, ElementSerdeMode } from "./utils";
 declare const $0: Element;
 
 // Export a function that will be properly invoked in the DevTools context
-export default function serializeElementForDevTools() {
+export default function inspectedElementToJSON() {
     // Function body is intact, but will be called within an IIFE wrapper
     const element = $0;
     if (!element) {
@@ -18,5 +18,5 @@ export default function serializeElementForDevTools() {
             css: ''
         };
     }
-    return DomUtils.serializeElement(element as HTMLElement, { mode: ElementSerdeMode.INLINE_STYLES });
+    return DomUtils.elementToJSON(element as HTMLElement, { mode: ElementSerdeMode.INLINE_STYLES });
 }

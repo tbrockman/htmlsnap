@@ -27,7 +27,7 @@ describe('DomUtils', () => {
         });
 
         test('serializes html', () => {
-            const serialized = DomUtils.serializeElement(container, { mode: ElementSerdeMode.INLINE_STYLES });
+            const serialized = DomUtils.elementToJSON(container, { mode: ElementSerdeMode.INLINE_STYLES });
 
             console.log(serialized)
 

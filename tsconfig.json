@@ -15,12 +15,7 @@
         "types": [
             "chrome"
         ],
-        "baseUrl": ".",
-        "paths": {
-            "funcstr:*": [
-                "src/*"
-            ]
-        },
+        "baseUrl": "."
     },
     "include": [
         "src"

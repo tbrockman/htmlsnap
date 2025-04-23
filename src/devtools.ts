@@ -3,22 +3,61 @@
  * SPDX-License-Identifier: AGPL-3.0-or-later
  */
 
-import serializeElementForDevTools from "funcstr:./dom";
+import inspectedElementToJSON from "funcstr:./dom";
 import CleanCSS from 'clean-css';
+import { SIDEBAR_NAME } from "./constants";
+import { DomUtils } from "./utils";
+import { basicSetup, EditorView } from "codemirror";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { html } from "@codemirror/lang-html";
+import { Compartment } from "@codemirror/state";
 
 const cleanCSS = new CleanCSS({
     level: 2,
-    format: 'keep-breaks', // Preserve some readability
-    inline: ['all'], // Don't process external resources
+    format: 'keep-breaks',
+    inline: ['all'],
 });
 
 const copyBtn = document.getElementById('copy');
+let editorView: EditorView | null = null;
+
+const isDarkMode = () => window.matchMedia("(prefers-color-scheme: dark)").matches;
+
+const getTheme = () =>
+    isDarkMode()
+        ? oneDark
+        : EditorView.theme({}, { dark: false });
+const themeCompartment = new Compartment;
+
+const editor = () => {
+    if (!editorView) {
+        const parent = document.querySelector("#codemirror");
+        if (!parent) throw new Error("Element #codemirror not found");
+
+        editorView = new EditorView({
+            doc: "<div>Loading...</div>",
+            extensions: [
+                basicSetup,
+                html(),
+                themeCompartment.of(getTheme())
+            ],
+            parent,
+        });
+
+        // Listen for theme changes
+        window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+            editorView!.dispatch({
+                effects: themeCompartment.reconfigure(getTheme())
+            });
+        });
+    }
+    return editorView;
+};
 
 async function updateSidebar() {
 
     chrome.devtools.inspectedWindow.eval(
-        // @ts-ignore
-        serializeElementForDevTools,  // This is now an executable string
+        inspectedElementToJSON,  // This is now an executable string
         (result, exceptionInfo) => {
             if (exceptionInfo && exceptionInfo.isException) {
                 const preview = document.getElementById('preview');
@@ -33,9 +72,9 @@ async function updateSidebar() {
 
             const { html, css } = JSON.parse(result as string)
 
-            console.debug({ html, css, parse: JSON.parse(result as string) });
             // Use CleanCSS to minify the CSS rules
             const cleaned = cleanCSS.minify(css);
+            console.debug({ cleaned })
 
             if (cleaned?.errors?.length > 0) {
                 console.error("CSS minification errors:", cleaned.errors);
@@ -48,37 +87,21 @@ async function updateSidebar() {
             }
 
             // Create new container with same ID for replacement
-            const newPreview = document.createElement('div');
+            const newPreview = DomUtils.hydrate(html as string, cleaned.styles)
             newPreview.id = 'preview';
-
-            // Create a template to parse the HTML
-            const template = document.createElement('template');
-            template.innerHTML = html as string;
-            newPreview.appendChild(template.content);
-
-            // Apply the cleaned CSS as a style element
-            const style = document.createElement('style');
-            style.innerHTML = cleaned.styles;
-            newPreview.appendChild(style);
 
             // Replace old preview with new one
             const oldPreview = document.getElementById('preview');
             oldPreview?.replaceWith(newPreview);
-
-            // @ts-ignore
-            window.view?.dispatch({ changes: { insert: newPreview.outerHTML, from: 0, to: window?.view.state.doc.length } })
+            editor().dispatch({ changes: { insert: newPreview.outerHTML, from: 0, to: editor().state.doc.length } })
         }
     );
 }
 
 copyBtn?.addEventListener('click', () => {
-
-    const preview = document.getElementById('preview');
-    const raw = preview?.getHTML();
-
     // Send message to background script to handle the copy
     chrome.runtime.sendMessage(
-        { action: 'copy-to-clipboard', text: raw },
+        { action: 'copy-to-clipboard', text: editorView?.state.doc.toString() },
         (response) => {
             if (chrome.runtime.lastError) {
                 console.error("DevTools: Error sending copy message:", chrome.runtime.lastError.message);
@@ -86,7 +109,7 @@ copyBtn?.addEventListener('click', () => {
                 setTimeout(() => (copyBtn.textContent = 'Copy to clipboard'), 2500);
             } else if (response && response.success) {
                 copyBtn.textContent = 'Copied!';
-                console.log("DevTools: Copy successful (via background).");
+                console.debug("DevTools: Copy successful (via background).");
                 setTimeout(() => (copyBtn.textContent = 'Copy to clipboard'), 1500);
             } else {
                 console.error("DevTools: Copy failed (reported by background):", response?.error || 'Unknown error');
@@ -97,7 +120,7 @@ copyBtn?.addEventListener('click', () => {
     );
 });
 
-chrome.devtools.panels.elements.createSidebarPane("Styled HTML", (sidebar) => {
+chrome.devtools.panels.elements.createSidebarPane(SIDEBAR_NAME, (sidebar) => {
     sidebar.setPage("devtools.html");
 
     // Refresh the page when the panel is shown
@@ -106,3 +129,5 @@ chrome.devtools.panels.elements.createSidebarPane("Styled HTML", (sidebar) => {
 chrome.devtools.panels.elements.onSelectionChanged.addListener(updateSidebar);
 
 updateSidebar();
+
+document.addEventListener('DOMContentLoaded', editor)

@@ -1,5 +1,7 @@
 # htmlsnap
 
+A browser DevTools extension for serializing individual HTML elements (and all their applicable styling)
+
 > [!NOTE]
 > This is alpha, (largely) vibe-coded software. Use at your own peril.
 

@@ -25,6 +25,8 @@
   "license": "ISC",
   "dependencies": {
     "@codemirror/lang-html": "^6.4.9",
+    "@codemirror/state": "^6.5.2",
+    "@codemirror/theme-one-dark": "^6.1.2",
     "clean-css": "^5.3.3",
     "codemirror": "^6.0.1"
   }
