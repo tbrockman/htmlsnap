@@ -29,6 +29,8 @@ export namespace DomUtils {
         // TODO: filter default styles
         function gatherStyles(element: HTMLElement, clone: HTMLElement) {
             const computedStyle = window.getComputedStyle(element);
+            // Remove existing classes from clone as they'll be redundant
+            clone.removeAttribute('class');
 
             if (!elementToId.has(clone)) {
                 const strId = id.toString()
