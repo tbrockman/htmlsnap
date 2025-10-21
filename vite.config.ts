@@ -12,9 +12,8 @@ export default defineConfig({
         outDir: "dist",
         rollupOptions: {
             input: {
-                background: "src/background.ts",
                 devtools: "src/devtools.ts",
-                offscreen: "src/offscreen.ts",
+                sidebar: "src/sidebar.ts",
             },
             output: {
                 entryFileNames: "[name].js",
