@@ -3,12 +3,5 @@
     "author": "Theodore Brockman",
     "version": "0.0.1",
     "manifest_version": 3,
-    "devtools_page": "devtools.html",
-    "permissions": [
-        "clipboardWrite",
-        "offscreen"
-    ],
-    "background": {
-        "service_worker": "background.js"
-    }
+    "devtools_page": "devtools.html"
 }
