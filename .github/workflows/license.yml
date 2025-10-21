@@ -10,6 +10,7 @@ jobs:
         permissions:
             contents: write # Required to push to PR branches
             pull-requests: write
+            workflows: write
 
         steps:
             - name: Checkout PR branch
