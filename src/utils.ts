@@ -18,6 +18,8 @@ export namespace DomUtils {
         const styleToElements = new Map<string, Set<HTMLElement>>()
         const elementsToStyles = new Map<string, Set<string>>()
         const elementToClasses = new Map<HTMLElement, string[]>()
+        const styleToElementsBefore = new Map<string, Set<HTMLElement>>()
+        const styleToElementsAfter = new Map<string, Set<HTMLElement>>()
         const elementToId = new Map<HTMLElement, string>()
         const idToElement = new Map<string, HTMLElement>()
         let id = 0;
@@ -27,6 +29,7 @@ export namespace DomUtils {
         }
 
         // TODO: filter default styles
+        // TODO: handle ::after and ::before pseudo elements
         function gatherStyles(element: HTMLElement, clone: HTMLElement) {
             const computedStyle = window.getComputedStyle(element);
             // Remove existing classes from clone as they'll be redundant
@@ -52,6 +55,36 @@ export namespace DomUtils {
                 }
             }
 
+            // Handle ::before pseudo-element
+            const beforeComputedStyle = window.getComputedStyle(element, '::before');
+            for (let i = 0; i < beforeComputedStyle.length; i++) {
+                const prop = beforeComputedStyle[i];
+                const value = beforeComputedStyle.getPropertyValue(prop);
+                const style = `${prop}:${value};`
+                const set = styleToElementsBefore.get(style);
+
+                if (set) {
+                    set.add(clone)
+                } else {
+                    styleToElementsBefore.set(style, new Set([clone]))
+                }
+            }
+
+            // Handle ::after pseudo-element
+            const afterComputedStyle = window.getComputedStyle(element, '::after');
+            for (let i = 0; i < afterComputedStyle.length; i++) {
+                const prop = afterComputedStyle[i];
+                const value = afterComputedStyle.getPropertyValue(prop);
+                const style = `${prop}:${value};`
+                const set = styleToElementsAfter.get(style);
+
+                if (set) {
+                    set.add(clone)
+                } else {
+                    styleToElementsAfter.set(style, new Set([clone]))
+                }
+            }
+
             const children = Array.from(element.children)
             const clones = Array.from(clone.children)
 
@@ -59,7 +92,32 @@ export namespace DomUtils {
         }
         gatherStyles(element, clone)
 
-        // TODO: handle ::after and ::before pseudo elements
+        // Process ::before styles
+        const elementsToStylesBefore = new Map<string, Set<string>>()
+        styleToElementsBefore.forEach((set, style) => {
+            const ids = elementsToIds(set)
+            const elements = elementsToStylesBefore.get(ids)
+
+            if (elements) {
+                elements.add(style)
+            } else {
+                elementsToStylesBefore.set(ids, new Set([style]))
+            }
+        })
+
+        // Process ::after styles
+        const elementsToStylesAfter = new Map<string, Set<string>>()
+        styleToElementsAfter.forEach((set, style) => {
+            const ids = elementsToIds(set)
+            const elements = elementsToStylesAfter.get(ids)
+
+            if (elements) {
+                elements.add(style)
+            } else {
+                elementsToStylesAfter.set(ids, new Set([style]))
+            }
+        })
+
         styleToElements.forEach((set, style) => {
             const ids = elementsToIds(set)
             const elements = elementsToStyles.get(ids)
@@ -79,6 +137,50 @@ export namespace DomUtils {
             classes.push(className)
 
             const rule = `.${className} { ${Array.from(styles).join('')} }`
+            rules.push(rule)
+
+            ids.split(',').forEach(id => {
+                const e = idToElement.get(id)!
+                const classNames = elementToClasses.get(e)
+                e.classList.add(className)
+
+                if (classNames) {
+                    classNames.push(className)
+                } else {
+                    elementToClasses.set(e, [className])
+                }
+            })
+            counter++;
+        })
+
+        // Process ::before classes
+        elementsToStylesBefore.forEach((styles, ids) => {
+            const className = `🫰${counter}`
+            classes.push(className)
+
+            const rule = `.${className}::before { ${Array.from(styles).join('')} }`
+            rules.push(rule)
+
+            ids.split(',').forEach(id => {
+                const e = idToElement.get(id)!
+                const classNames = elementToClasses.get(e)
+                e.classList.add(className)
+
+                if (classNames) {
+                    classNames.push(className)
+                } else {
+                    elementToClasses.set(e, [className])
+                }
+            })
+            counter++;
+        })
+
+        // Process ::after classes
+        elementsToStylesAfter.forEach((styles, ids) => {
+            const className = `🫰${counter}`
+            classes.push(className)
+
+            const rule = `.${className}::after { ${Array.from(styles).join('')} }`
             rules.push(rule)
 
             ids.split(',').forEach(id => {
