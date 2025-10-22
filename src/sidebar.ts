@@ -27,13 +27,32 @@ const getTheme = () =>
         : EditorView.theme({}, { dark: false });
 const themeCompartment = new Compartment;
 
+const tabs = () => {
+    // Tab switching functionality
+    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const tab = button.dataset.tab;
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        tabPanels.forEach(panel => panel.classList.remove('active'));
+        const targetPanel = document.getElementById(tab + '-tab');
+        if (targetPanel) {
+          targetPanel.classList.add('active');
+        }
+      });
+    });
+}
+
 const editor = () => {
     if (!editorView) {
         const parent = document.querySelector("#codemirror");
         if (!parent) throw new Error("Element #codemirror not found");
 
         editorView = new EditorView({
-            doc: "<div>Loading...</div>",
+            doc: "<div></div>",
             extensions: [
                 basicSetup,
                 html(),
@@ -52,11 +71,40 @@ const editor = () => {
     return editorView;
 };
 
+// Loading state management functions
+function showLoadingState(message: string) {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.classList.add('show');
+        const loadingText = loadingOverlay.querySelector('.loading-text');
+        if (loadingText) {
+            loadingText.textContent = message;
+        }
+    }
+}
+
+function hideLoadingState() {
+    const loadingOverlay = document.getElementById('loading-overlay');
+    if (loadingOverlay) {
+        loadingOverlay.classList.remove('show');
+
+        const loadingText = loadingOverlay.querySelector('.loading-text');
+        if (loadingText) {
+            loadingText.textContent = '';
+        }
+    }
+}
+
 async function updateSidebar() {
+    // Show loading state at the beginning
+    showLoadingState("Building snapshot...");
 
     chrome.devtools.inspectedWindow.eval(
         inspectedElementToJSON,  // This is now an executable string
         (result, exceptionInfo) => {
+            // Hide loading state when done
+            hideLoadingState();
+
             if (exceptionInfo && exceptionInfo.isException) {
                 const preview = document.getElementById('preview');
                 if (!preview) {
@@ -100,24 +148,8 @@ async function updateSidebar() {
 
 // Set up everything after DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
+    tabs();
     editor();
-
-    // Tab switching functionality
-    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-button');
-    const tabPanels = document.querySelectorAll('.tab-panel');
-
-    tabButtons.forEach(button => {
-      button.addEventListener('click', () => {
-        const tab = button.dataset.tab;
-        tabButtons.forEach(btn => btn.classList.remove('active'));
-        button.classList.add('active');
-        tabPanels.forEach(panel => panel.classList.remove('active'));
-        const targetPanel = document.getElementById(tab + '-tab');
-        if (targetPanel) {
-          targetPanel.classList.add('active');
-        }
-      });
-    });
-    chrome.devtools.panels.elements.onSelectionChanged.addListener(updateSidebar);
     updateSidebar();
+    chrome.devtools.panels.elements.onSelectionChanged.addListener(updateSidebar);
 });

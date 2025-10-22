@@ -20,4 +20,5 @@ Then, in your browser of choice, load the unpacked extension in `dist/`.
 - Related JavaScript is not captured (and likely will never be).
 - `<canvas>` content is not (currently) captured.
 - Pseudo-elements (e.g., `::before`, `::after`) are not (currently) captured.
-- Default browser styles are not filtered out (i.e, adding some redundancy to the output).
+- CSS animations and transitions are not (currently) captured.
+- Default browser styles are not filtered out (unnecessarily increasing the size of the output).
