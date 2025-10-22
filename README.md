@@ -1,4 +1,4 @@
-# htmlsnap
+# snaphtml
 
 A browser DevTools extension for snapshotting inspected HTML elements (and their CSS) as pastable snippets.
 
