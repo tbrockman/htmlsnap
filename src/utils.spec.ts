@@ -9,7 +9,7 @@ import { JSDOM } from 'jsdom';
 
 describe('DomUtils', () => {
 
-    describe('serializeElement', () => {
+    describe('elementToJSON', () => {
         let container: HTMLElement;
 
         beforeEach(() => {
@@ -26,11 +26,13 @@ describe('DomUtils', () => {
             container = document.getElementById('root')!;
         });
 
-        test('serializes html', () => {
+        test('converts element to JSON', () => {
             const serialized = DomUtils.elementToJSON(container, { mode: ElementSerdeMode.INLINE_STYLES });
-
-            console.log(serialized)
-
+            const json = JSON.parse(serialized);
+            expect(json).toHaveProperty('html');
+            expect(json).toHaveProperty('css');
+            expect(typeof json.html).toBe('string');
+            expect(typeof json.css).toBe('string');
         });
     })
 
