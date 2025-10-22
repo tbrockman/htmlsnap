@@ -1,6 +1,6 @@
 <!--
- Copyright 2025 Theodore Brockman
- SPDX-License-Identifier: AGPL-3.0-or-later
+  Copyright 2025 Theodore Brockman
+  SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <!DOCTYPE html>
 <html>
@@ -32,54 +32,87 @@
       display: flex;
       flex-direction: column;
       padding: 8px;
-      gap: 8px;
+      height: 100vh;
+      box-sizing: border-box;
     }
 
-    .section {
+    .tab-container {
       display: flex;
       flex-direction: column;
       flex: 1;
-      max-height: 50vh;
+      min-height: 0;
     }
 
-    .section > .header {
+    .tab-bar {
+      display: flex;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 2px;
+    }
+
+    .tab-button {
+      padding: 8px 16px 6px;
+      background: none;
+      border: none;
+      cursor: pointer;
       font-weight: bold;
       font-size: 0.85rem;
-      padding-bottom: 4px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 4px;
-    }
-
-    #codemirror, #preview {
-        overflow: auto;
-    }
-
-    #copy {
-      font-size: 0.75rem;
-      padding: 4px 8px;
-      background-color: var(--bg);
       color: var(--fg);
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      cursor: pointer;
-      transition: background-color 0.2s ease;
+      border-bottom: 2px solid transparent;
+      transition: border-bottom-color 0.2s ease;
     }
 
-    #copy:hover {
-      background-color: rgba(127,127,127,0.1);
+    .tab-button:hover {
+      border-bottom-color: var(--border);
+    }
+
+    .tab-button.active {
+      border-bottom-color: var(--fg);
+    }
+
+    .tab-content {
+      flex: 1;
+      position: relative;
+    }
+
+    .tab-panel {
+      display: none;
+      height: 100%;
+      width: 100%;
+    }
+
+    .tab-panel.active {
+      display: block;
+    }
+
+    #codemirror {
+      height: 100%;
+      overflow: auto;
+    }
+
+    #preview {
+      height: 100%;
+      width: 100%;
+      display: block;
+      overflow: auto;
+      box-sizing: border-box;
     }
   </style>
 </head>
 
 <body>
-  <div class="section" id="editor-section">
-    <div class="header">Editor</div>
-    <div id="codemirror"></div>
-  </div>
-
-  <div class="section">
-    <div class="header">Preview</div>
-    <div id="preview">Rendered output goes here...</div>
+  <div class="tab-container">
+    <div class="tab-bar">
+      <button class="tab-button active" data-tab="editor">HTML</button>
+      <button class="tab-button" data-tab="preview">Preview</button>
+    </div>
+    <div class="tab-content">
+      <div id="editor-tab" class="tab-panel active">
+        <div id="codemirror"></div>
+      </div>
+      <div id="preview-tab" class="tab-panel">
+        <div id="preview">Rendered output goes here...</div>
+      </div>
+    </div>
   </div>
 
   <script src="sidebar.js" type="module"></script>

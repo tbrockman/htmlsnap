@@ -86,6 +86,7 @@ async function updateSidebar() {
 
             // Create new container with same ID for replacement
             const newPreview = DomUtils.hydrate(html as string, cleaned.styles)
+            DomUtils.fixImageSrcs(newPreview);
             newPreview.id = 'preview';
 
             // Replace old preview with new one
@@ -99,6 +100,23 @@ async function updateSidebar() {
 // Set up everything after DOM is loaded
 document.addEventListener('DOMContentLoaded', () => {
     editor();
+
+    // Tab switching functionality
+    const tabButtons = document.querySelectorAll<HTMLButtonElement>('.tab-button');
+    const tabPanels = document.querySelectorAll('.tab-panel');
+
+    tabButtons.forEach(button => {
+      button.addEventListener('click', () => {
+        const tab = button.dataset.tab;
+        tabButtons.forEach(btn => btn.classList.remove('active'));
+        button.classList.add('active');
+        tabPanels.forEach(panel => panel.classList.remove('active'));
+        const targetPanel = document.getElementById(tab + '-tab');
+        if (targetPanel) {
+          targetPanel.classList.add('active');
+        }
+      });
+    });
     chrome.devtools.panels.elements.onSelectionChanged.addListener(updateSidebar);
     updateSidebar();
 });

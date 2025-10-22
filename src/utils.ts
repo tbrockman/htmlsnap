@@ -7,7 +7,7 @@ export enum ElementSerdeMode {
     INLINE_STYLES = 0,
     // PARSE_CSS = 1
 }
-export type ElementSerdeOptions = {
+export type ElementToJSONOptions = {
     mode?: ElementSerdeMode;
 }
 
@@ -59,6 +59,7 @@ export namespace DomUtils {
         }
         gatherStyles(element, clone)
 
+        // TODO: handle ::after and ::before pseudo elements
         styleToElements.forEach((set, style) => {
             const ids = elementsToIds(set)
             const elements = elementsToStyles.get(ids)
@@ -74,7 +75,7 @@ export namespace DomUtils {
         const rules: string[] = [];
 
         elementsToStyles.forEach((styles, ids) => {
-            const className = `🇨🇦${counter}`
+            const className = `🫰${counter}`
             classes.push(className)
 
             const rule = `.${className} { ${Array.from(styles).join('')} }`
@@ -115,6 +116,40 @@ export namespace DomUtils {
         return element;
     }
 
+    export function fixImageSrcs(element: HTMLElement): void {
+        const images = element.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
+        images.forEach(img => {
+            const src = img.getAttribute('src');
+            if (src?.startsWith('//')) {
+                img.setAttribute('src', `https:${src}`);
+            }
+        });
+    }
+
+    function isTransparentOrEmpty(color: string): boolean {
+        return color == '' || color === 'transparent' || /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)/.test(color);
+    }
+
+    /**
+     * Finds the nearest non-transparent background color of an element or its ancestors.
+     * @param element The element to check.
+     * @returns The background color as a string.
+     */
+    export function findNearestBackgroundColor(element: HTMLElement): string {
+        let color = 'transparent';
+        let el: HTMLElement | null = element;
+
+        while (
+            el &&
+            ((color = window.getComputedStyle(el).backgroundColor),
+            isTransparentOrEmpty(color))
+        ) {
+            el = el.parentElement;
+        }
+
+        return color;
+    }
+
     /**
      * Serializes an element (and its children) as a JSON string
      * 
@@ -122,7 +157,7 @@ export namespace DomUtils {
      * @param options Serialization options
      * @returns a JSON string of { html, css }
      */
-    export function elementToJSON(element: HTMLElement, { mode }: ElementSerdeOptions): string {
+    export function elementToJSON(element: HTMLElement, { mode }: ElementToJSONOptions): string {
         if (!element) return "<No element received>";
 
         let result = { html: '<div>Unrecognized mode</div>', css: '' }
@@ -130,7 +165,10 @@ export namespace DomUtils {
         switch (mode) {
             case ElementSerdeMode.INLINE_STYLES:
                 const { css, element: el } = groupByComputedStyles(element)
-
+                // Fix in case background color is not set
+                // TODO: should likely be an option to disable this behavior
+                const bg = findNearestBackgroundColor(element);
+                el.style.backgroundColor = bg;
                 result.html = el.outerHTML;
                 result.css = css;
                 break;
