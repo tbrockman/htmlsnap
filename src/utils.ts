@@ -15,73 +15,59 @@ export namespace DomUtils {
 
     export function groupByComputedStyles(element: HTMLElement) {
         const clone = element.cloneNode(true) as HTMLElement
-        const styleToElements = new Map<string, Set<HTMLElement>>()
-        const elementsToStyles = new Map<string, Set<string>>()
-        const elementToClasses = new Map<HTMLElement, string[]>()
-        const styleToElementsBefore = new Map<string, Set<HTMLElement>>()
-        const styleToElementsAfter = new Map<string, Set<HTMLElement>>()
+        const styleToElementIds = new Map<string, Set<string>>()
+        const elementIdsToStyles = new Map<string, Set<string>>()
+        const elementIdsToClasses = new Map<string, string[]>()
         const elementToId = new Map<HTMLElement, string>()
         const idToElement = new Map<string, HTMLElement>()
         let id = 0;
 
-        function elementsToIds(elements: Set<HTMLElement>) {
-            return Array.from(elements).map(e => elementToId.get(e)).sort().join(',')
+        function elementsToIds(elements: Set<string>) {
+            return Array.from(elements).sort().join(',')
         }
 
         // TODO: filter default styles
-        // TODO: handle ::after and ::before pseudo elements
         function gatherStyles(element: HTMLElement, clone: HTMLElement) {
             const computedStyle = window.getComputedStyle(element);
+            // TODO: handle pseudo-elements
+            const beforeStyle = window.getComputedStyle(element, '::before');
+            const afterStyle = window.getComputedStyle(element, '::after');
             // Remove existing classes from clone as they'll be redundant
             clone.removeAttribute('class');
+            let elementId = elementToId.get(clone);
 
-            if (!elementToId.has(clone)) {
-                const strId = id.toString()
-                elementToId.set(clone, strId)
-                idToElement.set(strId, clone)
+            if (!elementId) {
+                elementId = id.toString()
+                let ids = [elementId]
+
+                if (beforeStyle && beforeStyle.content && beforeStyle.content !== 'none') {
+                    ids.push('::before')
+                }
+                if (afterStyle && afterStyle.content && afterStyle.content !== 'none') {
+                    ids.push('::after')
+                }
+
+                elementToId.set(clone, elementId)
+                idToElement.set(elementId, clone)
                 id++;
             }
 
             for (let i = 0; i < computedStyle.length; i++) {
                 const prop = computedStyle[i];
+                
+                // Skip CSS variable declarations, as they are not needed in the final output
+                if (prop.startsWith('--')) {
+                    continue;
+                }
+                
                 const value = computedStyle.getPropertyValue(prop);
                 const style = `${prop}:${value};`
-                const set = styleToElements.get(style);
+                const set = styleToElementIds.get(style);
 
                 if (set) {
-                    set.add(clone)
+                    set.add(elementId)
                 } else {
-                    styleToElements.set(style, new Set([clone]))
-                }
-            }
-
-            // Handle ::before pseudo-element
-            const beforeComputedStyle = window.getComputedStyle(element, '::before');
-            for (let i = 0; i < beforeComputedStyle.length; i++) {
-                const prop = beforeComputedStyle[i];
-                const value = beforeComputedStyle.getPropertyValue(prop);
-                const style = `${prop}:${value};`
-                const set = styleToElementsBefore.get(style);
-
-                if (set) {
-                    set.add(clone)
-                } else {
-                    styleToElementsBefore.set(style, new Set([clone]))
-                }
-            }
-
-            // Handle ::after pseudo-element
-            const afterComputedStyle = window.getComputedStyle(element, '::after');
-            for (let i = 0; i < afterComputedStyle.length; i++) {
-                const prop = afterComputedStyle[i];
-                const value = afterComputedStyle.getPropertyValue(prop);
-                const style = `${prop}:${value};`
-                const set = styleToElementsAfter.get(style);
-
-                if (set) {
-                    set.add(clone)
-                } else {
-                    styleToElementsAfter.set(style, new Set([clone]))
+                    styleToElementIds.set(style, new Set([elementId]))
                 }
             }
 
@@ -92,47 +78,22 @@ export namespace DomUtils {
         }
         gatherStyles(element, clone)
 
-        // Process ::before styles
-        const elementsToStylesBefore = new Map<string, Set<string>>()
-        styleToElementsBefore.forEach((set, style) => {
+        // TODO: handle ::after and ::before pseudo elements
+        styleToElementIds.forEach((set, style) => {
             const ids = elementsToIds(set)
-            const elements = elementsToStylesBefore.get(ids)
+            const elements = elementIdsToStyles.get(ids)
 
             if (elements) {
-                elements.add(style)
+                elementIdsToStyles.set(ids, elements.add(style))
             } else {
-                elementsToStylesBefore.set(ids, new Set([style]))
-            }
-        })
-
-        // Process ::after styles
-        const elementsToStylesAfter = new Map<string, Set<string>>()
-        styleToElementsAfter.forEach((set, style) => {
-            const ids = elementsToIds(set)
-            const elements = elementsToStylesAfter.get(ids)
-
-            if (elements) {
-                elements.add(style)
-            } else {
-                elementsToStylesAfter.set(ids, new Set([style]))
-            }
-        })
-
-        styleToElements.forEach((set, style) => {
-            const ids = elementsToIds(set)
-            const elements = elementsToStyles.get(ids)
-
-            if (elements) {
-                elementsToStyles.set(ids, elements.add(style))
-            } else {
-                elementsToStyles.set(ids, new Set([style]))
+                elementIdsToStyles.set(ids, new Set([style]))
             }
         })
         let counter = 0;
         const classes: string[] = [];
         const rules: string[] = [];
 
-        elementsToStyles.forEach((styles, ids) => {
+        elementIdsToStyles.forEach((styles, ids) => {
             const className = `🫰${counter}`
             classes.push(className)
 
@@ -141,57 +102,13 @@ export namespace DomUtils {
 
             ids.split(',').forEach(id => {
                 const e = idToElement.get(id)!
-                const classNames = elementToClasses.get(e)
+                const classNames = elementIdsToClasses.get(id)
                 e.classList.add(className)
 
                 if (classNames) {
                     classNames.push(className)
                 } else {
-                    elementToClasses.set(e, [className])
-                }
-            })
-            counter++;
-        })
-
-        // Process ::before classes
-        elementsToStylesBefore.forEach((styles, ids) => {
-            const className = `🫰${counter}`
-            classes.push(className)
-
-            const rule = `.${className}::before { ${Array.from(styles).join('')} }`
-            rules.push(rule)
-
-            ids.split(',').forEach(id => {
-                const e = idToElement.get(id)!
-                const classNames = elementToClasses.get(e)
-                e.classList.add(className)
-
-                if (classNames) {
-                    classNames.push(className)
-                } else {
-                    elementToClasses.set(e, [className])
-                }
-            })
-            counter++;
-        })
-
-        // Process ::after classes
-        elementsToStylesAfter.forEach((styles, ids) => {
-            const className = `🫰${counter}`
-            classes.push(className)
-
-            const rule = `.${className}::after { ${Array.from(styles).join('')} }`
-            rules.push(rule)
-
-            ids.split(',').forEach(id => {
-                const e = idToElement.get(id)!
-                const classNames = elementToClasses.get(e)
-                e.classList.add(className)
-
-                if (classNames) {
-                    classNames.push(className)
-                } else {
-                    elementToClasses.set(e, [className])
+                    elementIdsToClasses.set(id, [className])
                 }
             })
             counter++;
@@ -228,7 +145,17 @@ export namespace DomUtils {
         });
     }
 
-    function isTransparentOrEmpty(color: string): boolean {
+    export function fixAnchorHrefs(element: HTMLElement): void {
+        const links = element.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
+        links.forEach(link => {
+            const href = link.getAttribute('href');
+            if (href?.startsWith('//')) {
+                link.setAttribute('href', `https:${href}`);
+            }
+        });
+    }
+
+    function isTransparent(color: string): boolean {
         return color == '' || color === 'transparent' || /rgba\(\s*\d+,\s*\d+,\s*\d+,\s*0\s*\)/.test(color);
     }
 
@@ -244,7 +171,7 @@ export namespace DomUtils {
         while (
             el &&
             ((color = window.getComputedStyle(el).backgroundColor),
-            isTransparentOrEmpty(color))
+            isTransparent(color))
         ) {
             el = el.parentElement;
         }
@@ -253,9 +180,205 @@ export namespace DomUtils {
     }
 
     /**
+     * Removes redundant attributes from an element and its descendants that don't contribute
+     * to styling or accessibility.
+     *
+     * @param element The element to clean
+     */
+    export function cleanRedundantAttributes(element: HTMLElement) {
+        // Define attributes that should always be preserved for all elements
+        const basePreserveAttributes = new Set([
+            // Accessibility attributes
+            'aria-label', 'aria-labelledby', 'aria-describedby', 'aria-expanded', 'aria-hidden',
+            'aria-live', 'aria-atomic', 'aria-relevant', 'aria-busy', 'aria-disabled',
+            'aria-checked', 'aria-selected', 'aria-pressed', 'aria-current', 'aria-level',
+            'aria-setsize', 'aria-posinset', 'aria-owns', 'aria-controls', 'aria-flowto',
+            'role', 'alt', 'title', 'tabindex',
+            
+            // Functional/semantic attributes
+            'name', 'for', 'href', 'src', 'srcset', 'sizes', 'type', 'value',
+            'placeholder', 'disabled', 'readonly', 'required', 'checked', 'selected',
+            'multiple', 'autocomplete', 'autofocus', 'pattern', 'min', 'max', 'step',
+            'maxlength', 'minlength', 'rows', 'cols', 'wrap', 'accept', 'capture',
+            'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget',
+            
+            // Media and content attributes
+            'width', 'height', 'loading', 'decoding', 'crossorigin', 'referrerpolicy',
+            'integrity', 'media', 'rel', 'target', 'download', 'ping',
+            
+            // Table attributes with semantic meaning
+            'colspan', 'rowspan', 'headers', 'scope',
+            
+            // List attributes
+            'start', 'reversed', 'type',
+            
+            // Meta attributes
+            'charset', 'content', 'http-equiv', 'property',
+
+            // The new classes generated by groupByComputedStyles
+            'class'
+        ]);
+
+        // SVG-specific attributes that are crucial for visual rendering
+        const svgPreserveAttributes = new Set([
+            // SVG structural attributes
+            'viewbox', 'xmlns', 'xmlns:xlink', 'version', 'baseprofile', 'contentscripttype', 'contentstyletype',
+            
+            // SVG geometric attributes
+            'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height',
+            'dx', 'dy', 'rotate', 'transform', 'pathlength',
+            
+            // SVG path attributes
+            'd', 'pathdata',
+            
+            // SVG presentation attributes (these can affect visual appearance)
+            'fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-opacity',
+            'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray',
+            'stroke-dashoffset', 'opacity', 'visibility', 'display', 'overflow',
+            'clip-path', 'clip-rule', 'mask', 'filter', 'color', 'color-interpolation',
+            'color-interpolation-filters', 'color-rendering', 'shape-rendering',
+            'text-rendering', 'image-rendering', 'font-family', 'font-size', 'font-style',
+            'font-weight', 'font-variant', 'text-anchor', 'text-decoration', 'letter-spacing',
+            'word-spacing', 'writing-mode', 'direction', 'unicode-bidi', 'dominant-baseline',
+            'alignment-baseline', 'baseline-shift', 'text-decoration', 'glyph-orientation-vertical',
+            'glyph-orientation-horizontal', 'kerning', 'text-rendering',
+            
+            // SVG gradient and pattern attributes
+            'gradientunits', 'gradienttransform', 'spreadmethod', 'patternunits', 'patterntransform',
+            'patterncontentunits', 'offset', 'stop-color', 'stop-opacity',
+            
+            // SVG animation attributes
+            'attributename', 'attributetype', 'begin', 'dur', 'end', 'min', 'max', 'restart',
+            'repeatcount', 'repeatdur', 'fill', 'calcmode', 'values', 'keytimes', 'keysplines',
+            'from', 'to', 'by', 'additive', 'accumulate',
+            
+            // SVG linking and references
+            'href', 'xlink:href', 'xlink:type', 'xlink:role', 'xlink:arcrole', 'xlink:title',
+            'xlink:show', 'xlink:actuate',
+            
+            // SVG text attributes
+            'text-anchor', 'textlength', 'lengthadjust', 'startoffset', 'method', 'spacing',
+            
+            // SVG filter and effect attributes
+            'in', 'in2', 'result', 'operator', 'k1', 'k2', 'k3', 'k4', 'dx', 'dy', 'stddeviation',
+            'edgemode', 'kernelmatrix', 'divisor', 'bias', 'targetx', 'targety', 'tablevalues',
+            'slope', 'intercept', 'amplitude', 'exponent', 'seed', 'stitchtiles', 'type',
+            'values', 'mode', 'scale', 'xchannelselector', 'ychannelselector', 'diffuseconstant',
+            'specularconstant', 'specularexponent', 'limitingconeangle', 'pointsatx', 'pointsaty',
+            'pointsatz', 'azimuth', 'elevation', 'surfacescale', 'kernelunitlength',
+            
+            // SVG marker attributes
+            'markerunits', 'markerwidth', 'markerheight', 'orient', 'refx', 'refy',
+            
+            // SVG clipping and masking
+            'clippathtunits', 'maskunits', 'maskcontentunits',
+            
+            // SVG symbol and use attributes
+            'preserveaspectratio', 'viewbox', 'refx', 'refy'
+        ]);
+
+        // Canvas-specific attributes
+        const canvasPreserveAttributes = new Set([
+            'width', 'height'
+        ]);
+
+        // Video/Audio-specific attributes
+        const mediaPreserveAttributes = new Set([
+            'autoplay', 'controls', 'loop', 'muted', 'poster', 'preload', 'playsinline',
+            'width', 'height', 'src', 'crossorigin'
+        ]);
+
+        // MathML-specific attributes
+        const mathmlPreserveAttributes = new Set([
+            'mathvariant', 'mathsize', 'mathcolor', 'mathbackground', 'dir', 'fontfamily',
+            'fontsize', 'fontstyle', 'fontweight', 'scriptlevel', 'displaystyle', 'scriptsizemultiplier',
+            'scriptminsize', 'infixlinebreakstyle', 'decimalpoint', 'grouping-separator',
+            'rowalign', 'columnalign', 'groupalign', 'alignmentscope', 'columnwidth', 'width',
+            'rowspacing', 'columnspacing', 'rowlines', 'columnlines', 'frame', 'framespacing',
+            'equalrows', 'equalcolumns', 'side', 'minlabelspacing', 'form', 'fence', 'separator',
+            'lspace', 'rspace', 'stretchy', 'symmetric', 'maxsize', 'minsize', 'largeop',
+            'movablelimits', 'accent', 'linebreak', 'lineleading', 'linebreakstyle',
+            'linebreakmultchar', 'indentalign', 'indentshift', 'indenttarget', 'indentalignfirst',
+            'indentshiftfirst', 'indentalignlast', 'indentshiftlast', 'depth', 'height', 'notation',
+            'numalign', 'denomalign', 'bevelled', 'linethickness', 'stackalign', 'align', 'position',
+            'shift', 'location', 'rowspan', 'columnspan', 'edge', 'actiontype', 'selection'
+        ]);
+
+        function shouldPreserveAttribute(el: Element, attrName: string): boolean {
+            const lowerAttrName = attrName.toLowerCase();
+            
+            // Always check base attributes first
+            if (basePreserveAttributes.has(lowerAttrName)) {
+                return true;
+            }
+            
+            const tagName = el.tagName.toLowerCase();
+            const namespace = el.namespaceURI;
+            
+            // Handle SVG elements (including elements within SVG namespace)
+            if (namespace === 'http://www.w3.org/2000/svg' || tagName === 'svg' || el.closest('svg')) {
+                if (svgPreserveAttributes.has(lowerAttrName)) {
+                    return true;
+                }
+            }
+            
+            // Handle Canvas elements
+            if (tagName === 'canvas') {
+                if (canvasPreserveAttributes.has(lowerAttrName)) {
+                    return true;
+                }
+            }
+            
+            // Handle Video/Audio elements
+            if (tagName === 'video' || tagName === 'audio') {
+                if (mediaPreserveAttributes.has(lowerAttrName)) {
+                    return true;
+                }
+            }
+            
+            // Handle MathML elements
+            if (namespace === 'http://www.w3.org/1998/Math/MathML' || tagName.startsWith('m') && el.closest('math')) {
+                if (mathmlPreserveAttributes.has(lowerAttrName)) {
+                    return true;
+                }
+            }
+            
+            return false;
+        }
+
+        function cleanElement(el: HTMLElement): void {
+            const attributes = Array.from(el.attributes);
+            
+            for (const attr of attributes) {
+                // Always preserve attributes in our preserve lists
+                if (shouldPreserveAttribute(el, attr.name)) {
+                    continue;
+                }
+                
+                // Special handling for namespaced attributes (like xlink:href)
+                const colonIndex = attr.name.indexOf(':');
+                if (colonIndex > -1) {
+                    const namespacedName = attr.name.toLowerCase();
+                    if (shouldPreserveAttribute(el, namespacedName)) {
+                        continue;
+                    }
+                }
+                
+                el.removeAttribute(attr.name);
+            }
+            
+            // Recursively clean child elements
+            const children = Array.from(el.children) as HTMLElement[];
+            children.forEach(child => cleanElement(child));
+        }
+        
+        cleanElement(element);
+    }
+
+    /**
      * Serializes an element (and its children) as a JSON string
-     * 
-     * @param element The element to serialize 
+     *
+     * @param element The element to serialize
      * @param options Serialization options
      * @returns a JSON string of { html, css }
      */
@@ -267,6 +390,7 @@ export namespace DomUtils {
         switch (mode) {
             case ElementSerdeMode.INLINE_STYLES:
                 const { css, element: el } = groupByComputedStyles(element)
+                cleanRedundantAttributes(el);
                 // Fix in case background color is not set
                 // TODO: should likely be an option to disable this behavior
                 const bg = findNearestBackgroundColor(element);
