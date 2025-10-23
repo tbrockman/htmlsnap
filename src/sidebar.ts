@@ -134,8 +134,7 @@ async function updateSidebar() {
 
             // Create new container with same ID for replacement
             const newPreview = DomUtils.hydrate(html as string, cleaned.styles)
-            DomUtils.fixImageSrcs(newPreview);
-            DomUtils.fixAnchorHrefs(newPreview);
+            DomUtils.normalizeResourceURLs(newPreview);
             newPreview.id = 'preview';
 
             // Replace old preview with new one

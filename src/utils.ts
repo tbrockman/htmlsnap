@@ -11,13 +11,28 @@ export type ElementToJSONOptions = {
     mode?: ElementSerdeMode;
 }
 
+export const HANDLED_PSEUDO_ELEMENTS = ['::before', '::after'];
+
 export namespace DomUtils {
+
+    function isPseudoElementVisible(style: CSSStyleDeclaration): boolean {
+        if (style.content === 'none') return false;
+        if (style.display === 'none' || style.visibility === 'hidden') return false;
+
+        const width = parseFloat(style.width);
+        const height = parseFloat(style.height);
+        const fontSize = parseFloat(style.fontSize);
+
+        if (width > 0 || height > 0 || fontSize > 0) return true;
+
+        const contentValue = style.content.replace(/['"]/g, '').trim();
+        return contentValue.length > 0;
+    }
 
     export function snapshotElement(element: HTMLElement) {
         const clone = element.cloneNode(true) as HTMLElement
         const styleToElementIds = new Map<string, Set<string>>()
         const elementIdsToStyles = new Map<string, Set<string>>()
-        const elementIdsToClasses = new Map<string, string[]>()
         const elementToId = new Map<HTMLElement, string>()
         const idToElement = new Map<string, HTMLElement>()
         let id = 0;
@@ -30,24 +45,25 @@ export namespace DomUtils {
             if (!elementId) {
                 elementId = id.toString()
 
-                const computedStyle = window.getComputedStyle(element);
-                const beforeStyle = window.getComputedStyle(element, '::before');
-                const afterStyle = window.getComputedStyle(element, '::after');
-
-                const targetsToStyles = {
-                    [elementId]: computedStyle,
-                    [`${elementId}::before`]: beforeStyle,
-                    [`${elementId}::after`]: afterStyle
+                const targetsToStyles: { [key: string]: CSSStyleDeclaration | undefined } = {
+                    [elementId]: window.getComputedStyle(element)
                 };
 
+                for (const pseudo of HANDLED_PSEUDO_ELEMENTS) {
+                    const pseudoStyle = window.getComputedStyle(element, pseudo);
+                    if (isPseudoElementVisible(pseudoStyle)) {
+                        targetsToStyles[`${elementId}${pseudo}`] = pseudoStyle;
+                    }
+                }
                 elementToId.set(clone, elementId)
 
                 for (const elementId in targetsToStyles) {
-                    const styles = targetsToStyles[elementId as keyof typeof targetsToStyles];
+                    idToElement.set(elementId, clone);
+                    const styles = targetsToStyles[elementId]!;
 
                     for (let i = 0; i < styles.length; i++) {
                         const prop = styles[i];
-                    
+
                         // Skip CSS variable declarations, as they are not needed in the final output
                         if (prop.startsWith('--')) {
                             continue;
@@ -90,24 +106,36 @@ export namespace DomUtils {
         const rules: string[] = [];
 
         elementIdsToStyles.forEach((styles, ids) => {
-            const className = `🫰${counter}`
-            classes.push(className)
+            const targets: { [t: string]: string } = {
+                base: `🫰${counter}`
+            };
+            classes.push(targets.base);
 
-            const rule = `.${className} { ${Array.from(styles).join('')} }`
-            rules.push(rule)
-
+            const splitIds = ids.split(',');
             // TODO: handle ::before and ::after pseudo elements
-            ids.split(',').forEach(id => {
+            splitIds.forEach(id => {
                 const e = idToElement.get(id)!
-                const classNames = elementIdsToClasses.get(id)
-                e.classList.add(className)
+                const [_, pseudo] = id.split('::');
 
-                if (classNames) {
-                    classNames.push(className)
+                if (!pseudo) {
+                    e.classList.add(targets.base);
                 } else {
-                    elementIdsToClasses.set(id, [className])
+                    if (!(pseudo in targets)) {
+                        const className = `🫰${counter}-${pseudo}`;
+                        classes.push(className);
+                        targets[pseudo] = className;
+                    }
+                    e.classList.add(targets[pseudo]!);
                 }
             })
+
+            const selector = Object.entries(targets)
+                .filter(([_, v]) => v)
+                .map(([_, v]) => `.${v}`)
+                .join(', ');
+            const rule = `${selector} { ${Array.from(styles).join('')} }`
+            rules.push(rule)
+
             counter++;
         })
 
@@ -132,24 +160,39 @@ export namespace DomUtils {
         return element;
     }
 
-    export function fixImageSrcs(element: HTMLElement): void {
-        const images = element.querySelectorAll('img') as NodeListOf<HTMLImageElement>;
-        images.forEach(img => {
-            const src = img.getAttribute('src');
-            if (src?.startsWith('//')) {
-                img.setAttribute('src', `https:${src}`);
+    /**
+     * Normalizes resource URL protocols to HTTPS (i.e, convert <img src="//example.com"> to <img src="https://example.com">) for a given element and its descendants.
+     * @param element The root element to normalize resource URLs for
+     */
+    export function normalizeResourceURLs(element: HTMLElement): void {
+        // Helper to normalize a single attribute
+        const normalizeAttr = (el: HTMLElement, attr: string) => {
+            const val = el.getAttribute(attr);
+            if (val?.startsWith('//')) {
+                el.setAttribute(attr, `https:${val}`);
             }
-        });
-    }
+        };
 
-    export function fixAnchorHrefs(element: HTMLElement): void {
-        const links = element.querySelectorAll('a') as NodeListOf<HTMLAnchorElement>;
-        links.forEach(link => {
-            const href = link.getAttribute('href');
-            if (href?.startsWith('//')) {
-                link.setAttribute('href', `https:${href}`);
-            }
-        });
+        // img[src]
+        element.querySelectorAll('img').forEach(img => normalizeAttr(img, 'src'));
+
+        // a[href]
+        element.querySelectorAll('a').forEach(link => normalizeAttr(link, 'href'));
+
+        // script[src]
+        element.querySelectorAll('script').forEach(script => normalizeAttr(script, 'src'));
+
+        // iframe[src]
+        element.querySelectorAll('iframe').forEach(iframe => normalizeAttr(iframe, 'src'));
+
+        // link[href] (for stylesheets, icons)
+        element.querySelectorAll('link').forEach(link => normalizeAttr(link, 'href'));
+
+        // form[action]
+        element.querySelectorAll('form').forEach(form => normalizeAttr(form, 'action'));
+
+        // audio[src] and video[src]
+        element.querySelectorAll('audio, video').forEach(media => normalizeAttr(media as HTMLMediaElement, 'src'));
     }
 
     function isTransparent(color: string): boolean {
@@ -168,7 +211,7 @@ export namespace DomUtils {
         while (
             el &&
             ((color = window.getComputedStyle(el).backgroundColor),
-            isTransparent(color))
+                isTransparent(color))
         ) {
             el = el.parentElement;
         }
@@ -182,7 +225,7 @@ export namespace DomUtils {
      *
      * @param element The element to clean
      */
-    export function cleanRedundantAttributes(element: HTMLElement) {
+    export function removeUnusedAttributes(element: HTMLElement) {
         // Define attributes that should always be preserved for all elements
         const basePreserveAttributes = new Set([
             // Accessibility attributes
@@ -191,24 +234,24 @@ export namespace DomUtils {
             'aria-checked', 'aria-selected', 'aria-pressed', 'aria-current', 'aria-level',
             'aria-setsize', 'aria-posinset', 'aria-owns', 'aria-controls', 'aria-flowto',
             'role', 'alt', 'title', 'tabindex',
-            
+
             // Functional/semantic attributes
             'name', 'for', 'href', 'src', 'srcset', 'sizes', 'type', 'value',
             'placeholder', 'disabled', 'readonly', 'required', 'checked', 'selected',
             'multiple', 'autocomplete', 'autofocus', 'pattern', 'min', 'max', 'step',
             'maxlength', 'minlength', 'rows', 'cols', 'wrap', 'accept', 'capture',
             'form', 'formaction', 'formenctype', 'formmethod', 'formnovalidate', 'formtarget',
-            
+
             // Media and content attributes
             'width', 'height', 'loading', 'decoding', 'crossorigin', 'referrerpolicy',
             'integrity', 'media', 'rel', 'target', 'download', 'ping',
-            
+
             // Table attributes with semantic meaning
             'colspan', 'rowspan', 'headers', 'scope',
-            
+
             // List attributes
             'start', 'reversed', 'type',
-            
+
             // Meta attributes
             'charset', 'content', 'http-equiv', 'property',
 
@@ -220,14 +263,14 @@ export namespace DomUtils {
         const svgPreserveAttributes = new Set([
             // SVG structural attributes
             'viewbox', 'xmlns', 'xmlns:xlink', 'version', 'baseprofile', 'contentscripttype', 'contentstyletype',
-            
+
             // SVG geometric attributes
             'x', 'y', 'x1', 'y1', 'x2', 'y2', 'cx', 'cy', 'r', 'rx', 'ry', 'width', 'height',
             'dx', 'dy', 'rotate', 'transform', 'pathlength',
-            
+
             // SVG path attributes
             'd', 'pathdata',
-            
+
             // SVG presentation attributes (these can affect visual appearance)
             'fill', 'fill-opacity', 'fill-rule', 'stroke', 'stroke-width', 'stroke-opacity',
             'stroke-linecap', 'stroke-linejoin', 'stroke-miterlimit', 'stroke-dasharray',
@@ -239,23 +282,23 @@ export namespace DomUtils {
             'word-spacing', 'writing-mode', 'direction', 'unicode-bidi', 'dominant-baseline',
             'alignment-baseline', 'baseline-shift', 'text-decoration', 'glyph-orientation-vertical',
             'glyph-orientation-horizontal', 'kerning', 'text-rendering',
-            
+
             // SVG gradient and pattern attributes
             'gradientunits', 'gradienttransform', 'spreadmethod', 'patternunits', 'patterntransform',
             'patterncontentunits', 'offset', 'stop-color', 'stop-opacity',
-            
+
             // SVG animation attributes
             'attributename', 'attributetype', 'begin', 'dur', 'end', 'min', 'max', 'restart',
             'repeatcount', 'repeatdur', 'fill', 'calcmode', 'values', 'keytimes', 'keysplines',
             'from', 'to', 'by', 'additive', 'accumulate',
-            
+
             // SVG linking and references
             'href', 'xlink:href', 'xlink:type', 'xlink:role', 'xlink:arcrole', 'xlink:title',
             'xlink:show', 'xlink:actuate',
-            
+
             // SVG text attributes
             'text-anchor', 'textlength', 'lengthadjust', 'startoffset', 'method', 'spacing',
-            
+
             // SVG filter and effect attributes
             'in', 'in2', 'result', 'operator', 'k1', 'k2', 'k3', 'k4', 'dx', 'dy', 'stddeviation',
             'edgemode', 'kernelmatrix', 'divisor', 'bias', 'targetx', 'targety', 'tablevalues',
@@ -263,13 +306,13 @@ export namespace DomUtils {
             'values', 'mode', 'scale', 'xchannelselector', 'ychannelselector', 'diffuseconstant',
             'specularconstant', 'specularexponent', 'limitingconeangle', 'pointsatx', 'pointsaty',
             'pointsatz', 'azimuth', 'elevation', 'surfacescale', 'kernelunitlength',
-            
+
             // SVG marker attributes
             'markerunits', 'markerwidth', 'markerheight', 'orient', 'refx', 'refy',
-            
+
             // SVG clipping and masking
             'clippathtunits', 'maskunits', 'maskcontentunits',
-            
+
             // SVG symbol and use attributes
             'preserveaspectratio', 'viewbox', 'refx', 'refy'
         ]);
@@ -303,55 +346,55 @@ export namespace DomUtils {
 
         function shouldPreserveAttribute(el: Element, attrName: string): boolean {
             const lowerAttrName = attrName.toLowerCase();
-            
+
             // Always check base attributes first
             if (basePreserveAttributes.has(lowerAttrName)) {
                 return true;
             }
-            
+
             const tagName = el.tagName.toLowerCase();
             const namespace = el.namespaceURI;
-            
+
             // Handle SVG elements (including elements within SVG namespace)
             if (namespace === 'http://www.w3.org/2000/svg' || tagName === 'svg' || el.closest('svg')) {
                 if (svgPreserveAttributes.has(lowerAttrName)) {
                     return true;
                 }
             }
-            
+
             // Handle Canvas elements
             if (tagName === 'canvas') {
                 if (canvasPreserveAttributes.has(lowerAttrName)) {
                     return true;
                 }
             }
-            
+
             // Handle Video/Audio elements
             if (tagName === 'video' || tagName === 'audio') {
                 if (mediaPreserveAttributes.has(lowerAttrName)) {
                     return true;
                 }
             }
-            
+
             // Handle MathML elements
             if (namespace === 'http://www.w3.org/1998/Math/MathML' || tagName.startsWith('m') && el.closest('math')) {
                 if (mathmlPreserveAttributes.has(lowerAttrName)) {
                     return true;
                 }
             }
-            
+
             return false;
         }
 
         function cleanElement(el: HTMLElement): void {
             const attributes = Array.from(el.attributes);
-            
+
             for (const attr of attributes) {
                 // Always preserve attributes in our preserve lists
                 if (shouldPreserveAttribute(el, attr.name)) {
                     continue;
                 }
-                
+
                 // Special handling for namespaced attributes (like xlink:href)
                 const colonIndex = attr.name.indexOf(':');
                 if (colonIndex > -1) {
@@ -360,15 +403,15 @@ export namespace DomUtils {
                         continue;
                     }
                 }
-                
+
                 el.removeAttribute(attr.name);
             }
-            
+
             // Recursively clean child elements
             const children = Array.from(el.children) as HTMLElement[];
             children.forEach(child => cleanElement(child));
         }
-        
+
         cleanElement(element);
     }
 
@@ -387,7 +430,7 @@ export namespace DomUtils {
         switch (mode) {
             case ElementSerdeMode.INLINE_STYLES:
                 const { css, element: el } = snapshotElement(element)
-                cleanRedundantAttributes(el);
+                removeUnusedAttributes(el);
                 // Fix in case background color is not set
                 // TODO: should likely be an option to disable this behavior
                 const bg = findNearestBackgroundColor(element);
