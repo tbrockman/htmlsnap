@@ -13,7 +13,7 @@ export type ElementToJSONOptions = {
 
 export namespace DomUtils {
 
-    export function groupByComputedStyles(element: HTMLElement) {
+    export function snapshotElement(element: HTMLElement) {
         const clone = element.cloneNode(true) as HTMLElement
         const styleToElementIds = new Map<string, Set<string>>()
         const elementIdsToStyles = new Map<string, Set<string>>()
@@ -22,53 +22,49 @@ export namespace DomUtils {
         const idToElement = new Map<string, HTMLElement>()
         let id = 0;
 
-        function elementsToIds(elements: Set<string>) {
-            return Array.from(elements).sort().join(',')
-        }
-
-        // TODO: filter default styles
         function gatherStyles(element: HTMLElement, clone: HTMLElement) {
-            const computedStyle = window.getComputedStyle(element);
-            // TODO: handle pseudo-elements
-            const beforeStyle = window.getComputedStyle(element, '::before');
-            const afterStyle = window.getComputedStyle(element, '::after');
             // Remove existing classes from clone as they'll be redundant
             clone.removeAttribute('class');
             let elementId = elementToId.get(clone);
 
             if (!elementId) {
                 elementId = id.toString()
-                let ids = [elementId]
 
-                if (beforeStyle && beforeStyle.content && beforeStyle.content !== 'none') {
-                    ids.push('::before')
-                }
-                if (afterStyle && afterStyle.content && afterStyle.content !== 'none') {
-                    ids.push('::after')
-                }
+                const computedStyle = window.getComputedStyle(element);
+                const beforeStyle = window.getComputedStyle(element, '::before');
+                const afterStyle = window.getComputedStyle(element, '::after');
+
+                const targetsToStyles = {
+                    [elementId]: computedStyle,
+                    [`${elementId}::before`]: beforeStyle,
+                    [`${elementId}::after`]: afterStyle
+                };
 
                 elementToId.set(clone, elementId)
-                idToElement.set(elementId, clone)
+
+                for (const elementId in targetsToStyles) {
+                    const styles = targetsToStyles[elementId as keyof typeof targetsToStyles];
+
+                    for (let i = 0; i < styles.length; i++) {
+                        const prop = styles[i];
+                    
+                        // Skip CSS variable declarations, as they are not needed in the final output
+                        if (prop.startsWith('--')) {
+                            continue;
+                        }
+
+                        const value = styles.getPropertyValue(prop);
+                        const style = `${prop}:${value};`
+                        const set = styleToElementIds.get(style);
+
+                        if (set) {
+                            set.add(elementId)
+                        } else {
+                            styleToElementIds.set(style, new Set([elementId]))
+                        }
+                    }
+                }
                 id++;
-            }
-
-            for (let i = 0; i < computedStyle.length; i++) {
-                const prop = computedStyle[i];
-                
-                // Skip CSS variable declarations, as they are not needed in the final output
-                if (prop.startsWith('--')) {
-                    continue;
-                }
-                
-                const value = computedStyle.getPropertyValue(prop);
-                const style = `${prop}:${value};`
-                const set = styleToElementIds.get(style);
-
-                if (set) {
-                    set.add(elementId)
-                } else {
-                    styleToElementIds.set(style, new Set([elementId]))
-                }
             }
 
             const children = Array.from(element.children)
@@ -79,8 +75,8 @@ export namespace DomUtils {
         gatherStyles(element, clone)
 
         // TODO: handle ::after and ::before pseudo elements
-        styleToElementIds.forEach((set, style) => {
-            const ids = elementsToIds(set)
+        styleToElementIds.forEach((elementIds, style) => {
+            const ids = Array.from(elementIds).sort().join(',')
             const elements = elementIdsToStyles.get(ids)
 
             if (elements) {
@@ -100,6 +96,7 @@ export namespace DomUtils {
             const rule = `.${className} { ${Array.from(styles).join('')} }`
             rules.push(rule)
 
+            // TODO: handle ::before and ::after pseudo elements
             ids.split(',').forEach(id => {
                 const e = idToElement.get(id)!
                 const classNames = elementIdsToClasses.get(id)
@@ -215,7 +212,7 @@ export namespace DomUtils {
             // Meta attributes
             'charset', 'content', 'http-equiv', 'property',
 
-            // The new classes generated by groupByComputedStyles
+            // The new classes generated by snapshotElement
             'class'
         ]);
 
@@ -389,7 +386,7 @@ export namespace DomUtils {
 
         switch (mode) {
             case ElementSerdeMode.INLINE_STYLES:
-                const { css, element: el } = groupByComputedStyles(element)
+                const { css, element: el } = snapshotElement(element)
                 cleanRedundantAttributes(el);
                 // Fix in case background color is not set
                 // TODO: should likely be an option to disable this behavior

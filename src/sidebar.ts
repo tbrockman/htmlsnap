@@ -101,7 +101,7 @@ async function updateSidebar() {
 
     chrome.devtools.inspectedWindow.eval(
         inspectedElementToJSON,  // This is now an executable string
-        (result, exceptionInfo) => {
+        (result: string, exceptionInfo) => {
             // Hide loading state when done
             hideLoadingState();
 
@@ -116,7 +116,7 @@ async function updateSidebar() {
                 return;
             }
 
-            const { html, css } = JSON.parse(result as string)
+            const { html, css } = JSON.parse(result)
 
             // Use CleanCSS to minify the CSS rules
             const cleaned = cleanCSS.minify(css);

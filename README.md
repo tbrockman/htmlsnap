@@ -17,8 +17,8 @@ Then, in your browser of choice, load the unpacked extension in `dist/`.
 
 ## Limitations
 
-- Related JavaScript is not captured (and likely will never be).
+- JavaScript associated with elements are not captured (and likely will never be).
 - `<canvas>` content is not (currently) captured.
 - Pseudo-elements (e.g., `::before`, `::after`) are not (currently) captured.
 - CSS animations and transitions are not (currently) captured.
-- Default browser styles are not filtered out (unnecessarily increasing the size of the output).
+- Default browser styles are not filtered from output (more portable, but likely redundant).

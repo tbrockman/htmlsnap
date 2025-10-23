@@ -36,7 +36,7 @@ describe('DomUtils', () => {
         });
     })
 
-    describe('groupByComputedStyles', () => {
+    describe('snapshotElement', () => {
         let container: HTMLElement;
 
         beforeEach(() => {
@@ -54,7 +54,7 @@ describe('DomUtils', () => {
         });
 
         test('groups elements by computed styles and returns CSS rules', () => {
-            const { classes, css, element } = DomUtils.groupByComputedStyles(container);
+            const { classes, css, element } = DomUtils.snapshotElement(container);
 
             // Basic shape check
             expect(classes).toBeDefined();
