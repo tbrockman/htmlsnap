@@ -3,7 +3,7 @@
 A browser DevTools extension for snapshotting inspected HTML elements (and their CSS) as pastable snippets.
 
 > [!NOTE]
-> This is alpha, (somewhat) vibe-coded software. Use at your own peril.
+> This is alpha, (somewhat) vibe-coded software. Use at your own risk.
 >
 
 ## Getting started
@@ -14,6 +14,10 @@ pnpm i && pnpm build
 ```
 
 Then, in your browser of choice, load the unpacked extension in `dist/`.
+
+## How is this different from [`snapDOM`](https://github.com/zumerlab/snapdom)?
+
+`snaphtml` is strictly worse (currently). It supports fewer features, takes longer to snapshot elements, but has a smaller output size (and not necessarily just as a result of not inlining images).
 
 ## Limitations
 

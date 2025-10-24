@@ -4,18 +4,11 @@
  */
 
 import inspectedElementToJSON from "funcstr:./dom";
-import CleanCSS from 'clean-css';
 import { DomUtils } from "./utils";
 import { basicSetup, EditorView } from "codemirror";
 import { oneDark } from "@codemirror/theme-one-dark";
 import { html } from "@codemirror/lang-html";
 import { Compartment } from "@codemirror/state";
-
-const cleanCSS = new CleanCSS({
-    level: 2,
-    format: 'keep-breaks',
-    inline: ['all'],
-});
 
 let editorView: EditorView | null = null;
 
@@ -118,14 +111,6 @@ async function updateSidebar() {
 
             const { html, css } = JSON.parse(result)
 
-            // Use CleanCSS to minify the CSS rules
-            const cleaned = cleanCSS.minify(css);
-            console.debug({ cleaned })
-
-            if (cleaned?.errors?.length > 0) {
-                console.error("CSS minification errors:", cleaned.errors);
-            }
-
             const previewParent = document.getElementById('preview')?.parentElement;
             if (!previewParent) {
                 console.error("Could not find preview parent element.");
@@ -133,7 +118,7 @@ async function updateSidebar() {
             }
 
             // Create new container with same ID for replacement
-            const newPreview = DomUtils.hydrate(html as string, cleaned.styles)
+            const newPreview = DomUtils.hydrate(html as string, css)
             DomUtils.normalizeResourceURLs(newPreview);
             newPreview.id = 'preview';
 

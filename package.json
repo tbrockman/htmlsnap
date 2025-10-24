@@ -20,14 +20,12 @@
     "vitest": "^4.0.1"
   },
   "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "author": "Theodore Brockman",
+  "license": "AGPL-3.0-only",
   "dependencies": {
     "@codemirror/lang-html": "^6.4.9",
     "@codemirror/state": "^6.5.2",
     "@codemirror/theme-one-dark": "^6.1.2",
-    "clean-css": "^5.3.3",
-    "codemirror": "^6.0.1",
-    "fabric": "^6.7.1"
+    "codemirror": "^6.0.1"
   }
 }
