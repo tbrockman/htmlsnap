@@ -5,15 +5,21 @@
 
 export enum ElementSerdeMode {
     INLINE_STYLES = 0,
-    // PARSE_CSS = 1
+    // PARSE_CSS = 1 // Future mode: parse CSS rather than using computed styles
 }
 export type ElementToJSONOptions = {
     mode?: ElementSerdeMode;
 }
 
-export const HANDLED_PSEUDO_ELEMENTS = ['::before', '::after'];
-
 export namespace DomUtils {
+
+    export const HANDLED_PSEUDO_ELEMENTS = ['::before', '::after'];
+    // TODO: potential optimization, encode as UTF16 codepoints instead of using number.toString()
+    let ELEMENT_ID = 0;
+
+    function getNextElementId(): string {
+        return (ELEMENT_ID++).toString();
+    }
 
     function isPseudoElementVisible(style: CSSStyleDeclaration): boolean {
         if (style.content === 'none') return false;
@@ -35,7 +41,6 @@ export namespace DomUtils {
         const elementIdsToStyles = new Map<string, Set<string>>()
         const elementToId = new Map<HTMLElement, string>()
         const idToElement = new Map<string, HTMLElement>()
-        let id = 0;
 
         function gatherStyles(element: HTMLElement, clone: HTMLElement) {
             // Remove existing classes from clone as they'll be redundant
@@ -43,7 +48,7 @@ export namespace DomUtils {
             let elementId = elementToId.get(clone);
 
             if (!elementId) {
-                elementId = id.toString()
+                elementId = getNextElementId();
 
                 const targetsToStyles: { [key: string]: CSSStyleDeclaration | undefined } = {
                     [elementId]: window.getComputedStyle(element)
@@ -80,7 +85,6 @@ export namespace DomUtils {
                         }
                     }
                 }
-                id++;
             }
 
             const children = Array.from(element.children)
@@ -90,7 +94,6 @@ export namespace DomUtils {
         }
         gatherStyles(element, clone)
 
-        // TODO: handle ::after and ::before pseudo elements
         styleToElementIds.forEach((elementIds, style) => {
             const ids = Array.from(elementIds).sort().join(',')
             const elements = elementIdsToStyles.get(ids)
@@ -112,21 +115,25 @@ export namespace DomUtils {
             classes.push(targets.base);
 
             const splitIds = ids.split(',');
-            // TODO: handle ::before and ::after pseudo elements
             splitIds.forEach(id => {
                 const e = idToElement.get(id)!
                 const [_, pseudo] = id.split('::');
+                let className = targets.base;
 
-                if (!pseudo) {
-                    e.classList.add(targets.base);
-                } else {
+                // TODO: potential optimization:
+                // rather than create a new class for each pseudo-element,
+                // we could potentially reuse existing classes on parent elements
+                // (if an existing combination of classes exists to match all pseudo-element parents)
+                if (pseudo) {
+                    // The class for the parent of the pseudo-element
+                    className += 'p';
                     if (!(pseudo in targets)) {
-                        const className = `🫰${counter}-${pseudo}`;
                         classes.push(className);
-                        targets[pseudo] = className;
+                        // The rule target for the pseudo-element
+                        targets[pseudo] = `${className}::${pseudo}`;
                     }
-                    e.classList.add(targets[pseudo]!);
                 }
+                e.classList.add(className);
             })
 
             const selector = Object.entries(targets)
